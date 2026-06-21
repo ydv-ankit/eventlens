@@ -31,27 +31,28 @@ export default function Dashboard() {
     queryKey: ["analytics", "overview", projectId],
     queryFn: () => analyticsApi.overview(projectId!),
     enabled: !!projectId,
-    refetchInterval: 30_000,
+    refetchInterval: 5_000,
   });
 
   const { data: volume = [], isLoading: volumeLoading } = useQuery({
     queryKey: ["analytics", "volume", projectId, interval],
     queryFn: () => analyticsApi.eventVolume(projectId!, interval),
     enabled: !!projectId,
-    refetchInterval: 60_000,
+    refetchInterval: 5_000,
   });
 
   const { data: topEvents = [] } = useQuery({
     queryKey: ["analytics", "top", projectId],
     queryFn: () => analyticsApi.topEvents(projectId!, 8),
     enabled: !!projectId,
+    refetchInterval: 5_000,
   });
 
   const { data: recentEvents = [] } = useQuery({
     queryKey: ["analytics", "recent", projectId],
     queryFn: () => analyticsApi.recentEvents(projectId!, 10),
     enabled: !!projectId,
-    refetchInterval: 15_000,
+    refetchInterval: 5_000,
   });
 
   // Real-time events/sec via WebSocket

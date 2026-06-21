@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useProjectStore } from "@/store/useProjectStore";
@@ -107,22 +108,27 @@ export default function EventExplorer() {
 
       <div className="flex flex-1 gap-4 overflow-hidden">
       <aside className="w-56 shrink-0 space-y-4">
-        {[
-          { label: "Event Name", key: "event_name" as const, placeholder: "page_view" },
-          { label: "User ID",    key: "user_id"    as const, placeholder: "user_123" },
-          { label: "From",       key: "from"       as const, placeholder: "2026-01-01" },
-          { label: "To",         key: "to"         as const, placeholder: "2026-12-31" },
-        ].map(({ label, key, placeholder }) => (
+        {(["event_name", "user_id"] as const).map((key) => (
           <div key={key}>
-            <Label className="text-xs mb-1.5 block">{label}</Label>
+            <Label className="text-xs mb-1.5 block">
+              {key === "event_name" ? "Event Name" : "User ID"}
+            </Label>
             <Input
               className="h-8 text-xs font-mono"
-              placeholder={placeholder}
+              placeholder={key === "event_name" ? "page_view" : "user_123"}
               value={String(filters[key] ?? "")}
               onChange={(e) => setF(key, e.target.value)}
             />
           </div>
         ))}
+        <div>
+          <Label className="text-xs mb-1.5 block">From</Label>
+          <DatePicker label="Start date" value={filters.from ?? ""} onChange={(v) => setF("from", v)} />
+        </div>
+        <div>
+          <Label className="text-xs mb-1.5 block">To</Label>
+          <DatePicker label="End date" value={filters.to ?? ""} onChange={(v) => setF("to", v)} />
+        </div>
       </aside>
 
       <div className="flex-1 overflow-auto">
