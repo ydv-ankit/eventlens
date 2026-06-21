@@ -6,15 +6,43 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { useProjectStore } from "@/store/useProjectStore";
 import type { Event } from "@/types/api";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
-import { Activity, Filter } from "lucide-react";
-import { useState } from "react";
+import { Activity, Filter, Loader2, Radio } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+interface LiveEvent {
+  event_name: string;
+  user_id: string | null;
+  project_id: number;
+  timestamp: string;
+}
+
+const MAX_LIVE = 50;
 
 export default function EventExplorer() {
   const { selectedProject } = useProjectStore();
+  const [liveMode, setLiveMode] = useState(false);
+  const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([]);
+  const liveFeedRef = useRef<HTMLDivElement>(null);
+
+  const wsTopic = selectedProject ? `events:project:${selectedProject.id}` : "events";
+  const { lastMessage, connected } = useWebSocket(useMemo(() => [wsTopic], [wsTopic]));
+
+  useEffect(() => {
+    if (!liveMode || lastMessage?.type !== "live_event") return;
+    const e = lastMessage.payload as LiveEvent;
+    if (selectedProject && e.project_id !== selectedProject.id) return;
+    setLiveEvents((prev) => [e, ...prev].slice(0, MAX_LIVE));
+  }, [lastMessage, liveMode, selectedProject]);
+
+  // Auto-scroll live feed to top on new event
+  useEffect(() => {
+    liveFeedRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [liveEvents]);
 
   const [filters, setFilters] = useState<Omit<EventFilters, "cursor" | "project_id">>({
     event_name: "",
@@ -24,6 +52,7 @@ export default function EventExplorer() {
     limit: 50,
   });
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const sentinelRef = useRef<HTMLTableRowElement>(null);
 
   const projectId = selectedProject?.id ?? 0;
 
@@ -44,11 +73,39 @@ export default function EventExplorer() {
 
   const allEvents = data?.pages.flatMap((p) => p.events) ?? [];
 
+  // Auto-load next page when sentinel row scrolls into view
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage(); },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   const setF = (key: keyof typeof filters, value: string | number) =>
     setFilters((prev) => ({ ...prev, [key]: value }));
 
   return (
-    <div className="flex h-full gap-4">
+    <div className="flex flex-col h-full gap-4">
+      <PageHeader
+        title="Events"
+        action={
+          <Button
+            variant={liveMode ? "default" : "outline"}
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => { setLiveMode((v) => !v); setLiveEvents([]); }}
+          >
+            <Radio size={12} className={liveMode && connected ? "animate-pulse text-green-400" : ""} />
+            {liveMode ? (connected ? "Live" : "Reconnecting…") : "Go Live"}
+          </Button>
+        }
+      />
+
+      <div className="flex flex-1 gap-4 overflow-hidden">
       <aside className="w-56 shrink-0 space-y-4">
         {[
           { label: "Event Name", key: "event_name" as const, placeholder: "page_view" },
@@ -69,62 +126,99 @@ export default function EventExplorer() {
       </aside>
 
       <div className="flex-1 overflow-auto">
-        {!projectId ? (
-          <EmptyState icon={Filter} title="No project selected" description="Select a project from the top bar to explore events." />
-        ) : isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-10 rounded" />)}
-          </div>
-        ) : allEvents.length === 0 ? (
-          <EmptyState icon={Activity} title="No events found" description="Try adjusting your filters." />
-        ) : (
-          <>
-            <div className="rounded-lg border border-border overflow-hidden">
-              <div className="overflow-auto max-h-[calc(100vh-12rem)]">
+        {liveMode ? (
+          /* ── Live Feed ─────────────────────────────────────────────── */
+          !projectId ? (
+            <EmptyState icon={Radio} title="No project selected" description="Select a project from the top bar to see live events." />
+          ) : liveEvents.length === 0 ? (
+            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+              Waiting for events…
+            </div>
+          ) : (
+            <div ref={liveFeedRef} className="rounded-lg border border-border overflow-hidden overflow-y-auto max-h-[calc(100vh-12rem)]">
               <table className="w-full text-xs">
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b border-border bg-muted">
-                    {["Timestamp", "Event", "User ID", "Metadata Preview"].map((h) => (
+                    {["Timestamp", "Event", "User ID"].map((h) => (
                       <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {allEvents.map((e) => (
-                    <tr
-                      key={e.id}
-                      className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer"
-                      onClick={() => setSelectedEvent(e)}
-                    >
+                  {liveEvents.map((e, i) => (
+                    <tr key={i} className="border-b border-border last:border-0 animate-in fade-in duration-300">
                       <td className="px-3 py-2 font-mono text-muted-foreground whitespace-nowrap">
-                        {format(parseISO(e.timestamp), "MMM d, HH:mm:ss")}
+                        {format(parseISO(e.timestamp), "HH:mm:ss.SSS")}
                       </td>
                       <td className="px-3 py-2 font-mono font-medium text-foreground">{e.event_name}</td>
                       <td className="px-3 py-2 font-mono text-muted-foreground">{e.user_id ?? "—"}</td>
-                      <td className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">
-                        {JSON.stringify(e.metadata).slice(0, 60)}
-                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              </div>
             </div>
-            {hasNextPage && (
-              <div className="mt-4 flex justify-center">
-                <Button
-                  variant="outline" size="sm" onClick={() => fetchNextPage()}
-                  disabled={isFetchingNextPage}
-                >
-                  {isFetchingNextPage ? "Loading…" : "Load more"}
-                </Button>
+          )
+        ) : (
+          /* ── Historical Table ───────────────────────────────────────── */
+          !projectId ? (
+            <EmptyState icon={Filter} title="No project selected" description="Select a project from the top bar to explore events." />
+          ) : isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-10 rounded" />)}
+            </div>
+          ) : allEvents.length === 0 ? (
+            <EmptyState icon={Activity} title="No events found" description="Try adjusting your filters." />
+          ) : (
+            <>
+              <div className="rounded-lg border border-border overflow-hidden">
+                <div className="overflow-auto max-h-[calc(100vh-12rem)]">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="border-b border-border bg-muted">
+                        {["Timestamp", "Event", "User ID", "Metadata Preview"].map((h) => (
+                          <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allEvents.map((e) => (
+                        <tr
+                          key={e.id}
+                          className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer"
+                          onClick={() => setSelectedEvent(e)}
+                        >
+                          <td className="px-3 py-2 font-mono text-muted-foreground whitespace-nowrap">
+                            {format(parseISO(e.timestamp), "MMM d, HH:mm:ss")}
+                          </td>
+                          <td className="px-3 py-2 font-mono font-medium text-foreground">{e.event_name}</td>
+                          <td className="px-3 py-2 font-mono text-muted-foreground">{e.user_id ?? "—"}</td>
+                          <td className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">
+                            {JSON.stringify(e.metadata).slice(0, 60)}
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Sentinel row — triggers next page load when scrolled into view */}
+                      <tr ref={sentinelRef}>
+                        <td colSpan={4} className="px-3 py-3 text-center">
+                          {isFetchingNextPage && (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Loader2 size={12} className="animate-spin" />
+                              Loading more…
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            )}
-          </>
+            </>
+          )
         )}
       </div>
 
       <EventDetailDrawer event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      </div>
     </div>
   );
 }

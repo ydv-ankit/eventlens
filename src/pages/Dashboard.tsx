@@ -1,5 +1,4 @@
 import { analyticsApi, type VolumeInterval } from "@/api/analytics";
-import { systemApi } from "@/api/system";
 import { EventVolumeChart } from "@/components/charts/EventVolumeChart";
 import { KpiCard } from "@/components/common/KpiCard";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -7,13 +6,13 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import type { SystemHealth } from "@/types/api";
 import { useProjectStore } from "@/store/useProjectStore";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
-import {
-  Activity, FolderOpen, Users, Zap,
-} from "lucide-react";
-import { useState } from "react";
+import { Activity, FolderOpen, Users, Zap } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 const INTERVALS: { label: string; value: VolumeInterval }[] = [
   { label: "1h",  value: "1h"  },
@@ -55,11 +54,15 @@ export default function Dashboard() {
     refetchInterval: 15_000,
   });
 
-  const { data: health } = useQuery({
-    queryKey: ["system", "health"],
-    queryFn: systemApi.health,
-    refetchInterval: 30_000,
-  });
+  // Real-time events/sec via WebSocket
+  const { lastMessage } = useWebSocket(useMemo(() => ["system"], []));
+  const [liveEventsPerSec, setLiveEventsPerSec] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (lastMessage?.type === "system_metrics") {
+      setLiveEventsPerSec((lastMessage.payload as SystemHealth).eventsPerSec);
+    }
+  }, [lastMessage]);
 
   if (!projectId) {
     return (
@@ -77,17 +80,16 @@ export default function Dashboard() {
     <div>
       <PageHeader title="Dashboard" description={selectedProject?.name} />
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
         {overviewLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
+          Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-lg" />
           ))
         ) : (
           <>
             <KpiCard title="Today's Events" value={fmt(overview?.today_events)} icon={Activity} />
             <KpiCard title="Active Users" value={fmt(overview?.active_users)} icon={Users} />
-            <KpiCard title="Events / sec" value={overview?.events_per_sec ?? "—"} icon={Zap} />
-            <KpiCard title="Projects" value={fmt(overview?.project_count)} icon={FolderOpen} />
+            <KpiCard title="Events / sec" value={liveEventsPerSec ?? overview?.events_per_sec ?? "—"} icon={Zap} />
           </>
         )}
       </div>
@@ -144,60 +146,28 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Recent Events</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {recentEvents.map((e) => (
-                <div key={e.id} className="flex items-center justify-between py-1 border-b border-border last:border-0">
-                  <div>
-                    <p className="font-mono text-xs font-medium text-foreground">{e.event_name}</p>
-                    {e.user_id && (
-                      <p className="font-mono text-[10px] text-muted-foreground">{e.user_id}</p>
-                    )}
-                  </div>
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {format(parseISO(e.timestamp), "HH:mm:ss")}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">System Health</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {health ? (
-              <div className="grid grid-cols-2 gap-3">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Recent Events</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {recentEvents.map((e) => (
+              <div key={e.id} className="flex items-center justify-between py-1 border-b border-border last:border-0">
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Events / sec</p>
-                  <p className="font-mono text-sm tabular-nums">{health.eventsPerSec}</p>
+                  <p className="font-mono text-xs font-medium text-foreground">{e.event_name}</p>
+                  {e.user_id && (
+                    <p className="font-mono text-[10px] text-muted-foreground">{e.user_id}</p>
+                  )}
                 </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Total Processed</p>
-                  <p className="font-mono text-sm tabular-nums">{health.totalEventsProcessed.toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Queue Depth</p>
-                  <p className="font-mono text-sm tabular-nums">{health.mainQueueDepth}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Failed Insertions</p>
-                  <p className="font-mono text-sm tabular-nums">{health.failedInsertionCount}</p>
-                </div>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  {format(parseISO(e.timestamp), "HH:mm:ss")}
+                </span>
               </div>
-            ) : (
-              <Skeleton className="h-32 w-full" />
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
