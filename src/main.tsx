@@ -11,6 +11,8 @@ createRoot(document.getElementById("root")!).render(
     <ClerkProvider
       publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}
       afterSignOutUrl="/"
+      signInFallbackRedirectUrl="/dashboard"
+      signUpFallbackRedirectUrl="/dashboard"
       appearance={{ theme: shadcn }}
     >
       <App />

@@ -21,7 +21,7 @@ export async function apiFetch<T>(
   const token = await _getToken?.();
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json", ...authHeader, ...options?.headers },
+    headers: { "Content-Type": "application/json", ...authHeader, ...(options?.headers as Record<string, string>) } as HeadersInit,
     ...options,
   });
   const json = await res.json();

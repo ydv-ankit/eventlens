@@ -7,7 +7,7 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 
 const NAV = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
+  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: FolderOpen,      label: "Projects",  href: "/projects" },
   { icon: Activity,        label: "Events",    href: "/events" },
   { icon: BarChart3,       label: "Analytics", href: "/analytics" },
@@ -45,7 +45,7 @@ export function Sidebar() {
           <NavLink
             key={href}
             to={href}
-            end={href === "/"}
+            end={href === "/dashboard"}
             className={({ isActive }) =>
               cn(
                 "flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors",

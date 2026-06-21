@@ -1,4 +1,6 @@
 import { AppLayout } from "@/components/layout/AppLayout";
+import HomePage from "@/pages/HomePage";
+import ArchPage from "@/pages/ArchPage";
 import Dashboard from "@/pages/Dashboard";
 import Projects from "@/pages/Projects";
 import ProjectDetail from "@/pages/ProjectDetail";
@@ -12,7 +14,7 @@ import { useThemeStore } from "@/store/useThemeStore";
 import { setTokenGetter } from "@/api/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import { RedirectToSignIn, useAuth } from "@clerk/react";
 
 const queryClient = new QueryClient({
@@ -27,7 +29,8 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AuthGate({ children }: { children: React.ReactNode }) {
+// Layout route — guards all nested routes; uses Outlet so it can be a route element
+function AuthGate() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
 
   useEffect(() => {
@@ -36,7 +39,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!isLoaded) return null;
   if (!isSignedIn) return <RedirectToSignIn />;
-  return <>{children}</>;
+  return <Outlet />;
 }
 
 export default function App() {
@@ -44,10 +47,15 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <BrowserRouter>
-          <AuthGate>
-            <Routes>
+          <Routes>
+            {/* Public: landing page shown to unauthenticated visitors */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/arch" element={<ArchPage />} />
+
+            {/* Protected: require sign-in */}
+            <Route element={<AuthGate />}>
               <Route element={<AppLayout />}>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/projects" element={<Projects />} />
                 <Route path="/projects/:id" element={<ProjectDetail />} />
                 <Route path="/projects/:id/api-keys" element={<ApiKeys />} />
@@ -57,8 +65,8 @@ export default function App() {
                 <Route path="/system" element={<SystemPage />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
-            </Routes>
-          </AuthGate>
+            </Route>
+          </Routes>
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>
