@@ -1,11 +1,17 @@
-import { SignInButton, SignUpButton, useAuth } from "@clerk/react";
+import { SignInButton, useAuth, useClerk } from "@clerk/react";
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "./HomePage.css";
 
 export default function HomePage() {
   const { isLoaded, isSignedIn } = useAuth();
+  const { openSignIn } = useClerk();
   const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    if (isSignedIn) navigate("/dashboard");
+    else openSignIn({ fallbackRedirectUrl: "/dashboard" });
+  };
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lineSvgRef = useRef<SVGSVGElement>(null);
   const lineFillRef = useRef<SVGPathElement>(null);
@@ -157,12 +163,10 @@ export default function HomePage() {
           {[
             { label: "Features",     href: "#features" },
             { label: "Architecture", href: "/arch" },
-            { label: "Docs",         href: "#" },
-            { label: "Pricing",      href: "#" },
-            { label: "Roadmap",      href: "#" },
-            { label: "Status",       href: "#" },
+            { label: "Docs",         href: "/docs" },
+            { label: "Blogs",        href: "https://heyankit.hashnode.dev/series/learning-backend-systems" },
           ].map(({ label, href }) => (
-            <li key={label}><a href={href}>{label}</a></li>
+            <li key={label}><a href={href} {...(href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}>{label}</a></li>
           ))}
         </ul>
 
@@ -173,9 +177,7 @@ export default function HomePage() {
             </svg>
             GitHub
           </a>
-          <SignInButton mode="redirect" forceRedirectUrl="/dashboard">
-            <button className="hp-btn hp-btn-primary">Get Started</button>
-          </SignInButton>
+          <button className="hp-btn hp-btn-primary" onClick={handleGetStarted}>Get Started</button>
         </div>
       </nav>
 
@@ -204,12 +206,10 @@ export default function HomePage() {
             </p>
 
             <div className="hp-cta">
-              <SignUpButton mode="redirect" forceRedirectUrl="/dashboard">
-                <button className="hp-btn hp-btn-primary hp-btn-lg">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  Get Started
-                </button>
-              </SignUpButton>
+              <button className="hp-btn hp-btn-primary hp-btn-lg" onClick={handleGetStarted}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Get Started
+              </button>
               <SignInButton mode="redirect" forceRedirectUrl="/dashboard">
                 <button className="hp-btn hp-btn-ghost hp-btn-lg">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -363,7 +363,7 @@ export default function HomePage() {
       </section>
 
       {/* ── FEATURES ────────────────────────────────────────── */}
-      <section className="hp-features">
+      <section id="features" className="hp-features">
         <div className="hp-features-inner">
           {[
             {

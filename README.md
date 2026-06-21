@@ -1,73 +1,77 @@
-# React + TypeScript + Vite
+# EventLens — Dashboard Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React frontend for [EventLens](https://github.com/ydv-ankit/eventlens-server) — an open-source, self-hostable analytics platform. Visualise event volume, explore user flows, manage projects and API keys, and monitor system health in real time.
 
-Currently, two official plugins are available:
+## Related Repositories
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Repo | Description |
+|---|---|
+| [eventlens-server](https://github.com/ydv-ankit/eventlens-server) | API server, Kafka worker, and infrastructure |
+| [eventlens-sdk](https://github.com/ydv-ankit/eventlens-sdk) | JavaScript browser SDK (`eventlens-js` on npm) |
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **React 19** + TypeScript + Vite
+- **shadcn/ui** (New York style, dark mode default)
+- **TanStack Query** for server state
+- **Zustand** for client state (selected project)
+- **Recharts** for all charts
+- **React Router v6**
+- **Clerk** for authentication
 
-## Expanding the ESLint configuration
+## Pages
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+| Route | Description |
+|---|---|
+| `/` | Landing page |
+| `/arch` | System architecture diagram |
+| `/docs` | Documentation (SDK, REST API, self-hosting) |
+| `/dashboard` | KPI cards, event volume chart, recent events, system health |
+| `/projects` | Project grid — create, edit, delete |
+| `/projects/:id` | Project detail — Overview, API Keys, Events, Analytics, Settings tabs |
+| `/events` | Event Explorer — filter sidebar, infinite scroll table, event detail drawer |
+| `/analytics` | Charts — volume, top events, active users, distribution, heatmap |
+| `/users/:id` | User timeline — chronological event history |
+| `/system` | System health — Kafka, DB, worker metrics |
+| `/settings` | General settings |
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Getting Started
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+```bash
+# Install dependencies
+npm install
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Copy and configure environment
+cp .env.example .env
+# Set VITE_CLERK_PUBLISHABLE_KEY and VITE_API_URL
+
+# Start dev server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The app runs on `http://localhost:5173` by default. It expects the API server running on `http://localhost:8080` — see [eventlens-server](https://github.com/ydv-ankit/eventlens-server) for setup.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Environment Variables
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Variable | Description |
+|---|---|
+| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk publishable key — get it from [clerk.com](https://clerk.com) |
+| `VITE_API_URL` | Base URL of the EventLens server (default: `http://localhost:8080`) |
+
+## Integrating the SDK
+
+To track events from your own site, use the JavaScript SDK:
+
+```bash
+npm install eventlens-js
 ```
+
+```ts
+import EventLens from "eventlens-js";
+
+const el = new EventLens({ apiKey: "el_your_api_key" });
+el.identify("user_123");
+el.track("purchase_completed", { plan: "pro" });
+```
+
+See [eventlens-sdk](https://github.com/ydv-ankit/eventlens-sdk) for full documentation.

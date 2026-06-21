@@ -24,7 +24,7 @@ const FLOW_STEPS = [
     title: "Event Ingestion",
     color: C.amber,
     steps: [
-      "Client SDK sends POST /e/:key/ingest with JSON payload",
+      "Client SDK sends POST /event with api_key in the request body",
       "NGINX proxies the request to the API Server on :8080",
       "API Server validates the API key (hash lookup → project_id)",
       "Event is published to Kafka's events topic (4 partitions, round-robin)",
@@ -170,7 +170,7 @@ export default function ArchPage() {
             <text x="452" y="93" textAnchor="middle" fontSize="12" fontWeight="700" fill={C.text} fontFamily={FONT}>API Server</text>
             <text x="452" y="108" textAnchor="middle" fontSize="8.5" fill={C.muted} fontFamily={FONT}>Node.js · Express · TS</text>
             <line x1="390" y1="116" x2="515" y2="116" stroke={C.border} strokeWidth="0.75"/>
-            <text x="395" y="131" fontSize="8.5" fill={C.dim} fontFamily={FONT}>● POST /e/:key/ingest</text>
+            <text x="395" y="131" fontSize="8.5" fill={C.dim} fontFamily={FONT}>● POST /event</text>
             <text x="395" y="147" fontSize="8.5" fill={C.dim} fontFamily={FONT}>● GET /analytics/*</text>
             <text x="395" y="163" fontSize="8.5" fill={C.dim} fontFamily={FONT}>● GET /system/health</text>
             <text x="395" y="179" fontSize="8.5" fill={C.dim} fontFamily={FONT}>● GET /users/:id/events</text>

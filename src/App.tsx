@@ -1,6 +1,7 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import HomePage from "@/pages/HomePage";
 import ArchPage from "@/pages/ArchPage";
+import DocsPage from "@/pages/DocsPage";
 import Dashboard from "@/pages/Dashboard";
 import Projects from "@/pages/Projects";
 import ProjectDetail from "@/pages/ProjectDetail";
@@ -13,7 +14,7 @@ import Settings from "@/pages/Settings";
 import { useThemeStore } from "@/store/useThemeStore";
 import { setTokenGetter } from "@/api/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import { RedirectToSignIn, useAuth } from "@clerk/react";
 
@@ -27,6 +28,22 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
   return <>{children}</>;
+}
+
+// Clears localStorage when a signed-in user signs out
+function StorageCleaner() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const prev = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (prev.current === true && !isSignedIn) {
+      localStorage.clear();
+    }
+    prev.current = isSignedIn ?? false;
+  }, [isLoaded, isSignedIn]);
+
+  return null;
 }
 
 // Layout route — guards all nested routes; uses Outlet so it can be a route element
@@ -47,10 +64,12 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <BrowserRouter>
+          <StorageCleaner />
           <Routes>
             {/* Public: landing page shown to unauthenticated visitors */}
             <Route path="/" element={<HomePage />} />
             <Route path="/arch" element={<ArchPage />} />
+            <Route path="/docs" element={<DocsPage />} />
 
             {/* Protected: require sign-in */}
             <Route element={<AuthGate />}>

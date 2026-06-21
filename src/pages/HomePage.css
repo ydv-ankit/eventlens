@@ -5,6 +5,10 @@
   box-sizing: border-box;
 }
 
+html:has(.hp) {
+  scroll-behavior: smooth;
+}
+
 .hp {
   --hp-ground:    #080c18;
   --hp-surface:   #0d1122;
